@@ -1,12 +1,17 @@
 import deepchem as dc
 import numpy as np
+import pandas as pd
 import itertools
 from sklearn.ensemble import RandomForestRegressor
+
+def print_progress(i, n):
+    print('\r[%s%s]' % (''.join(['#']*int(20*((i+1)/n))), ''.join([' ']*int(20*(((n-i+1)/n))))), end='')
 
 def grid_search_graph_conv(train_set, hyper_params, folds=5):
 
     params = list(map(lambda key: hyper_params[key], hyper_params.keys()))
     n_of_tries = len(list(itertools.product(*params)))
+    search_results = []
 
     # split dataset into folds
     splitter = dc.splits.RandomSplitter()
@@ -45,16 +50,18 @@ def grid_search_graph_conv(train_set, hyper_params, folds=5):
             best_score = average_rmse
             best_params = (batch_size, conv_layers, layer_sizes, dropout_rate)
 
-        print('(%.2f) rmse = %.4f => %s' % ((i+1)/n_of_tries, average_rmse, str(best_params)))
+        search_results.append([average_rmse, batch_size, conv_layers, layer_sizes, dropout_rate])
+        print_progress(i, n_of_tries)
 
-    print('Best params = %s' % str(best_params))
-    return best_params
+    search_results = pd.DataFrame(search_results, columns=['rmse', 'batch_size', 'conv_layers', 'layer_sizes', 'dropout_rate']).sort_values(by='rmse')
+    return search_results, best_params
 
 
 def grid_search_mpnn(train_set, hyper_params, folds=5):
 
     params = list(map(lambda key: hyper_params[key], hyper_params.keys()))
     n_of_tries = len(list(itertools.product(*params)))
+    search_results = []
 
     # split dataset into folds
     splitter = dc.splits.RandomSplitter()
@@ -93,16 +100,18 @@ def grid_search_mpnn(train_set, hyper_params, folds=5):
             best_score = average_rmse
             best_params = (batch_size, n_atom_feat, n_pair_feat, n_hidden)
 
-        print('(%.2f) rmse = %.4f => %s' % ((i+1)/n_of_tries, average_rmse, str(best_params)))
+        search_results.append([average_rmse, batch_size, n_atom_feat, n_pair_feat, n_hidden])
+        print_progress(i, n_of_tries)
 
-    print('Best params = %s' % str(best_params))
-    return best_params
+    search_results = pd.DataFrame(search_results, columns=['rmse', 'batch_size', 'n_atom_feat', 'n_pair_feat', 'n_hidden']).sort_values(by='rmse')
+    return search_results, best_params
 
 
 def grid_search_random_forest(train_set, hyper_params, folds=5):
 
     params = list(map(lambda key: hyper_params[key], hyper_params.keys()))
     n_of_tries = len(list(itertools.product(*params)))
+    search_results = []
 
     # split dataset into folds
     splitter = dc.splits.RandomSplitter()
@@ -134,9 +143,10 @@ def grid_search_random_forest(train_set, hyper_params, folds=5):
         # save best hyperparams
         if average_rmse < best_score:
             best_score = average_rmse
-            best_params = (n_estimators, criterion)
+            best_params = (n_estimators, criterion, max_features)
 
-        print('(%.2f) rmse = %.4f => %s' % ((i+1)/n_of_tries, average_rmse, str(best_params)))
+        search_results.append([average_rmse, n_estimators, criterion, max_features])
+        print_progress(i, n_of_tries)
 
-    print('Best params = %s' % str(best_params))
-    return best_params
+    search_results = pd.DataFrame(search_results, columns=['rmse', 'n_estimators', 'criterion', 'max_features']).sort_values(by='rmse')
+    return search_results, best_params
